@@ -99,32 +99,7 @@ BEGIN
             v_info_descuento.monto_con_descuento := v_info_descuento.monto_original;
             v_monto_multa := v_info_descuento.monto_con_descuento;
         END IF;
-        
-        /*******************************************************************
-        -- Calcula si tiene 65 años o más
-        -- es_tercera_edad := MONTHS_BETWEEN(SYSDATE, reg_morosidad.fecha_nacimiento) / 12 >= 65;
-        v_edad := TRUNC(MONTHS_BETWEEN(SYSDATE, reg_morosidad.fecha_nacimiento) / 12);
-        DBMS_OUTPUT.PUT_LINE('Edad '||v_edad);
-       
-        -- v_desc_3ra_edad
-        
-         IF v_edad >= 65 THEN
-            BEGIN
-                SELECT porcentaje_descto
-                    INTO v_desc_3ra_edad
-                FROM porc_descto_3ra_edad
-                WHERE v_edad BETWEEN anno_ini AND anno_ter;
-    
-                DBMS_OUTPUT.PUT_LINE('Aplica descuento de ' || v_desc_3ra_edad || '%');
-                v_monto_multa := v_monto_multa - (v_monto_multa * (v_desc_3ra_edad/100));
-                
-            EXCEPTION
-                WHEN NO_DATA_FOUND THEN
-                    v_desc_3ra_edad := 0; -- No aplica descuento
-                    DBMS_OUTPUT.PUT_LINE('Edad en rango no cubierto. No aplica descuento.');
-            END;
-        END IF;
-        *********************************************/        
+     
         -- Grabamos los datos en la tabla pago_morosos
         INSERT INTO pago_moroso 
             VALUES ( reg_morosidad.pac_run,
@@ -136,14 +111,10 @@ BEGIN
 END;
 /
 
-
-
-
 SET SERVEROUTPUT ON;
-desc pago_moroso;
+DESC pago_moroso;
 SELECT * FROM pago_moroso;
 SELECT * FROM especialidad;
-SELECT * FROM medico_servicio_comunidad;
 SELECT * FROM porc_descto_3ra_edad;
 
 
@@ -163,3 +134,59 @@ CONSTRAINT PK_MED_SERV_COMUNIDAD PRIMARY KEY,
  total_aten_medicas NUMBER(2) NOT NULL,
  destinacion VARCHAR2(50) NOT NULL);
 
+DECLARE
+BEGIN
+END;
+/
+
+-- EJEMPLO DE SELECT
+        SELECT 
+            U.uni_id,
+            U.nombre,
+            M.med_run, M.dv_run,
+            M.pnombre||' '|| M.snombre||' '||M.apaterno||' '||M.amaterno AS MED_NOMBRE
+        FROM medico M INNER JOIN unidad U
+            ON M.uni_id = U.uni_id
+/*
+            INNER JOIN pago_atencion PA
+                ON A.ate_id = PA.ate_id
+            INNER JOIN especialidad E
+                ON A.esp_id = E.esp_id
+        WHERE EXTRACT(YEAR FROM PA.fecha_pago) = (EXTRACT (YEAR FROM SYSDATE) - 1)
+            AND PA.fecha_pago > PA.fecha_venc_pago
+            ORDER BY PA.fecha_venc_pago,P.apaterno
+*/
+;
+
+-- confeccion de email
+-- 1. Primeras 2 letras de la unidad (en mayúscula)
+    v_prefijo_unidad := UPPER(SUBSTR(REPLACE(v_unidad, ' ', ''), 1, 2));
+
+    -- 2. Antepenúltima y penúltima letra del apellido paterno
+    IF LENGTH(v_ap_paterno) >= 3 THEN
+        v_apellido_letras := SUBSTR(v_ap_paterno, LENGTH(v_ap_paterno) - 2, 2);
+    ELSE
+        v_apellido_letras := v_ap_paterno; -- por si tiene un apellido corto
+    END IF;
+
+    -- 3. Últimos 3 dígitos del RUT
+    v_rut_final := SUBSTR(LPAD(v_rut, 3, '0'), -3);
+
+    -- 4. Armar correo
+    v_correo := v_prefijo_unidad || v_apellido_letras || v_rut_final || '@salud.cl';
+
+    DBMS_OUTPUT.PUT_LINE('Correo institucional: ' || LOWER(v_correo));
+
+
+
+---- EJEMPLO DE SELECT -------------------------------------------
+
+SELECT * 
+FROM medico;
+SELECT * FROM unidad;
+DESC unidad;
+
+SELECT * FROM atencion;
+
+DESC medico_servicio_comunidad;
+SELECT * FROM medico_servicio_comunidad;
